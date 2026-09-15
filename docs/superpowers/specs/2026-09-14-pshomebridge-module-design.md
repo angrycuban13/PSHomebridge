@@ -162,9 +162,19 @@ Operational failure logging is credential-safe plain text. Successful requests a
 
 ### Source layout and help
 
-The module targets PowerShell 7 and uses one function per matching source file, approved verbs, singular nouns, PascalCase parameters, four-space indentation, fully qualified pipeline types, and `[OutputType()]`.
+The module targets PowerShell 7 and uses approved verbs, singular nouns, PascalCase parameters, and four-space indentation.
 
-Every public function documents its synopsis, description, parameters, meaningful examples, inputs, and outputs.
+Every ModuleBuilder source script contains exactly one function. Public and private script filenames match their function names.
+
+Every parameter declaration is on its own line. Parameter attributes, parameter types, and parameter variables are each on separate lines. Parameters with equivalent semantics receive equivalent validation. Named connections and API keys reject null, empty, and whitespace-only values. Every explicit URL uses the shared URL validator.
+
+Distinct actions are separated by a blank line, including assignments, conditionals, loops, transport calls, and output construction. Conditionals and loops are expanded across multiple lines when their bodies assign values, perform multiple actions, or become harder to scan inline. A single-action conditional may remain compact only when readability is preserved. Implementation hashtables use readable multi-line layouts.
+
+Every function includes comment-based help with `.SYNOPSIS`, `.DESCRIPTION`, `.PARAMETER` for every parameter, `.EXAMPLE`, `.INPUTS`, and `.OUTPUTS`. Every `.DESCRIPTION` begins with `This function`. Functions with meaningfully different use cases or parameter sets include more than one example. `.LINK` sections are omitted unless project requirements change.
+
+Functions that accept or return pipeline objects use fully qualified .NET type names in `.INPUTS`, `.OUTPUTS`, and `[OutputType()]`, keep those types consistent, and briefly describe them. Functions with no input or output document `None.` followed by the standard explanatory sentence.
+
+Public commands route operational failures through structured error records and the shared error handler. Parameter validation remains in validation attributes or parameter sets. Logs remain plain-text and human-readable. Operational failures are logged, expected input errors may be emitted without logging, and successful API calls are not logged by default.
 
 ## Verification
 
@@ -180,12 +190,14 @@ Pester transport tests mock `Invoke-RestMethod`. Endpoint tests mock `Invoke-Hom
 - Complete creation and partial update behavior
 - DPAPI, AES key validation, explicit plaintext, and encryption failure
 - Typed path/query serialization
+- Shared URL validation and consistent validation for equivalent parameter semantics
 - List, singular, and file response shapes
 - Stable type names and format views
 - Pipeline binding boundaries
 - `ShouldProcess`, `WhatIf`, overwrite refusal, and `Force`
 - Temporary download cleanup and atomic final placement
 - Provider-backed and sensitive-read safeguards
+- PSScriptAnalyzer and repository checks for parameter layout, indentation, action spacing, one-function-per-file naming, and complete help sections
 
 Contract tests compare every supported method/path pair with the 5.29.0 snapshot and assert that the six unsafe GET routes have no typed wrappers. There is no supported-application matrix because the module targets only Homebridge UI.
 

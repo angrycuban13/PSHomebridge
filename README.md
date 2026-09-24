@@ -1,3 +1,18 @@
+# PSHomebridge
+
+PSHomebridge is a reusable PowerShell 7 client for the Homebridge UI API.
+
+```powershell
+$credential = Get-Credential
+New-HomebridgeConnection -Name home -Url 'https://homebridge.example' -Credential $credential
+
+Get-HomebridgePlugin -Name home -UpdateAvailable
+Get-HomebridgeStatus -Name home -Type HomebridgeVersion
+Get-HomebridgeBackup -Name home
+```
+
+The initial consumer slice intentionally covers installed plugins, Homebridge version status, scheduled-backup discovery, and safe backup downloads. See [Connections](PSHomebridge/docs/Connections.md) and [Consumer migration](PSHomebridge/docs/Consumer-Migration.md).
+
 # API Endpoints Checklist
 
 ## Accessories

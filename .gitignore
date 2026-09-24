@@ -1,6 +1,4 @@
-/PSStarr/Output/
-/PSStarr/docs/research/
-/docs/superpowers/
+**/Output/
+**/docs/
 /.superpowers/
 /.worktrees/
-/PSHomebridge/Output/

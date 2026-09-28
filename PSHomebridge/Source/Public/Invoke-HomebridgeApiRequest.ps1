@@ -1,48 +1,73 @@
-function Invoke-HomebridgeApiRequest {
+﻿function Invoke-HomebridgeApiRequest {
     <#
     .SYNOPSIS
-        Sends an authenticated Homebridge API request.
+        Sends an authenticated request to the Homebridge API.
+
     .DESCRIPTION
-        This function resolves a connection, applies its bearer token, invokes HTTP, and retries authentication once when rejected.
-    .PARAMETER Name
-        The saved connection name.
+        This function sends a request through a saved or explicit connection. It returns the response or saves the response when the caller sets OutFile.
+
+        Named connections can reuse authorization. Explicit connections do not retain authorization. Expired authorization causes one renewal attempt.
+
+        Requests that change data and requests that write files support ShouldProcess. This function does not add resource-specific type names.
+
+    .PARAMETER InstanceName
+        The name of the saved Homebridge connection. When omitted, exactly one saved connection must exist.
+
     .PARAMETER Url
-        An explicit Homebridge base URL.
+        The absolute base URL of the Homebridge instance.
+
     .PARAMETER Credential
-        Explicit Homebridge credentials.
+        The username and password used to authenticate with Homebridge.
+
     .PARAMETER NoAuthentication
-        Indicates authentication is disabled.
+        Uses an instance that does not require a username or password. The function obtains the required authorization automatically.
+
     .PARAMETER Method
-        The HTTP method.
+        The HTTP method used for the request.
+
     .PARAMETER Path
-        A relative path beginning with /api/.
+        The relative Homebridge API path beginning with `/api`.
+
     .PARAMETER Query
-        Query values to serialize.
+        Query-string keys and values appended to the request URL.
+
     .PARAMETER Body
-        An optional JSON request body.
+        The request body. Non-string values are serialized as JSON.
+
     .PARAMETER OutFile
-        An optional response file path.
+        The optional response destination for a download.
+
     .EXAMPLE
-        Invoke-HomebridgeApiRequest -Name home -Method GET -Path '/api/plugins'
+        Invoke-HomebridgeApiRequest -InstanceName 'Home' -Method GET -Path '/api/plugins'
+
+        Uses the saved connection named Home and returns the installed-plugin response.
+
     .EXAMPLE
-        Invoke-HomebridgeApiRequest -Url 'https://homebridge.test' -Credential $credential -Method GET -Path '/api/plugins'
+        Invoke-HomebridgeApiRequest -Url 'http://localhost:8581' -Credential $credential -Method GET -Path '/api/plugins'
+
+        Uses an explicit URL and credential without saving either value.
+
     .INPUTS
-        None. You cannot pipe objects to this function.
+        None.
+
+        You cannot pipe objects to this function.
+
     .OUTPUTS
-        System.Object. This function returns the upstream response or writes OutFile.
+        [System.Object]
+
+        This function returns response objects retrieved from the Homebridge API or writes a response to OutFile.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium', DefaultParameterSetName = 'Named')]
     [OutputType([System.Object])]
-    param (
-        [Parameter(ParameterSetName = 'Named')]
-        [Alias('ConnectionName')]
-        [ValidatePattern('.*\S.*')]
+    param(
+        [Parameter(Mandatory = $false, ParameterSetName = 'Named')]
+        [ValidateNotNullOrWhiteSpace()]
         [System.String]
-        $Name,
+        $InstanceName,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'ExplicitCredential')]
         [Parameter(Mandatory = $true, ParameterSetName = 'ExplicitNoAuthentication')]
-        [ValidateScript({ Test-HomebridgeUrl -Url $_ })]
+        [ValidateScript({ Test-PSHomebridgeUrl -Url $_ })]
         [System.String]
         $Url,
 
@@ -64,104 +89,310 @@ function Invoke-HomebridgeApiRequest {
         [System.String]
         $Path,
 
-        [Parameter()]
-        [System.Collections.IDictionary]
+        [Parameter(Mandatory = $false)]
+        [System.Collections.Hashtable]
         $Query,
 
-        [Parameter()]
+        [Parameter(Mandatory = $false)]
         [System.Object]
         $Body,
 
-        [Parameter()]
+        [Parameter(Mandatory = $false)]
         [System.String]
         $OutFile
     )
 
-    $originalErrorAction = if ($PSBoundParameters.ContainsKey('ErrorAction')) {
-        [System.Management.Automation.ActionPreference] $PSBoundParameters.ErrorAction
+    if ($PSBoundParameters.ContainsKey('ErrorAction')) {
+        $originalErrorAction = [System.Management.Automation.ActionPreference] $PSBoundParameters.ErrorAction
     }
     else {
-        [System.Management.Automation.ActionPreference] $ErrorActionPreference
+        $originalErrorAction = [System.Management.Automation.ActionPreference] $ErrorActionPreference
     }
+
     $ErrorActionPreference = 'Stop'
+    $cacheable = $false
+    $cacheKey = $null
+    $plainPassword = $null
+    $authenticationParameters = $null
 
-    $resolveParameters = @{}
-    foreach ($key in @('Name', 'Url', 'Credential', 'NoAuthentication')) {
-        if ($PSBoundParameters.ContainsKey($key)) { $resolveParameters[$key] = $PSBoundParameters[$key] }
+    if ($PSCmdlet.ParameterSetName -eq 'Named') {
+        try {
+            $configuration = Get-PSHomebridgeConfiguration
+        }
+        catch {
+            $message = "Unable to load the saved Homebridge connection configuration. $($_.Exception.Message)"
+            $exception = [System.InvalidOperationException]::new($message, $_.Exception)
+            $errorRecordParameters = @{
+                Exception    = $exception
+                Category     = 'ReadError'
+                ErrorId      = 'HomebridgeConfigurationReadFailed'
+                TargetObject = $InstanceName
+                Activity     = $MyInvocation.MyCommand.Name
+            }
+            $errorRecord = New-PSHomebridgeErrorRecord @errorRecordParameters
+
+            $errorHandlerParameters = @{
+                Cmdlet              = $PSCmdlet
+                ErrorRecord         = $errorRecord
+                OriginalErrorAction = $originalErrorAction
+                LogMessage          = $message
+            }
+            Invoke-PSHomebridgeFunctionErrorHandler @errorHandlerParameters
+            return
+        }
+
+        if ($PSBoundParameters.ContainsKey('InstanceName')) {
+            if (-not $configuration.Connections.Contains($InstanceName)) {
+                $message = "Homebridge connection '$InstanceName' was not found."
+                $errorRecordParameters = @{
+                    Exception         = [System.Management.Automation.ItemNotFoundException]::new($message)
+                    Category          = 'ObjectNotFound'
+                    ErrorId           = 'HomebridgeConnectionNotFound'
+                    TargetObject      = $InstanceName
+                    Activity          = $MyInvocation.MyCommand.Name
+                    RecommendedAction = 'Create the connection with Set-PSHomebridgeConnection or specify an existing connection name.'
+                }
+                $errorRecord = New-PSHomebridgeErrorRecord @errorRecordParameters
+
+                $errorHandlerParameters = @{
+                    Cmdlet              = $PSCmdlet
+                    ErrorRecord         = $errorRecord
+                    OriginalErrorAction = $originalErrorAction
+                    NoLog               = $true
+                }
+                Invoke-PSHomebridgeFunctionErrorHandler @errorHandlerParameters
+                return
+            }
+
+            $instanceName = $InstanceName
+        }
+        else {
+            $connectionNames = @($configuration.Connections.Keys | Sort-Object)
+
+            if ($connectionNames.Count -eq 0) {
+                $message = 'No Homebridge connections were found.'
+                $errorRecordParameters = @{
+                    Exception         = [System.Management.Automation.ItemNotFoundException]::new($message)
+                    Category          = 'ObjectNotFound'
+                    ErrorId           = 'HomebridgeConnectionNotFound'
+                    Activity          = $MyInvocation.MyCommand.Name
+                    RecommendedAction = 'Create a connection with Set-PSHomebridgeConnection.'
+                }
+                $errorRecord = New-PSHomebridgeErrorRecord @errorRecordParameters
+
+                $errorHandlerParameters = @{
+                    Cmdlet              = $PSCmdlet
+                    ErrorRecord         = $errorRecord
+                    OriginalErrorAction = $originalErrorAction
+                    NoLog               = $true
+                }
+                Invoke-PSHomebridgeFunctionErrorHandler @errorHandlerParameters
+                return
+            }
+
+            if ($connectionNames.Count -gt 1) {
+                $message = "Multiple Homebridge connections match this request: $($connectionNames -join ', '). Specify InstanceName."
+                $errorRecordParameters = @{
+                    Exception         = [System.InvalidOperationException]::new($message)
+                    Category          = 'InvalidArgument'
+                    ErrorId           = 'HomebridgeConnectionAmbiguous'
+                    TargetObject      = $connectionNames
+                    Activity          = $MyInvocation.MyCommand.Name
+                    RecommendedAction = 'Specify the desired connection with InstanceName.'
+                }
+                $errorRecord = New-PSHomebridgeErrorRecord @errorRecordParameters
+
+                $errorHandlerParameters = @{
+                    Cmdlet              = $PSCmdlet
+                    ErrorRecord         = $errorRecord
+                    OriginalErrorAction = $originalErrorAction
+                    NoLog               = $true
+                }
+                Invoke-PSHomebridgeFunctionErrorHandler @errorHandlerParameters
+                return
+            }
+
+            $instanceName = $connectionNames[0]
+        }
+
+        $connection = $configuration.Connections[$instanceName]
+        $resolvedUrl = $connection.Url
+        $authentication = $connection.Authentication
+        $resolvedUsername = $connection.Username
+        $plainPassword = $connection.Password
+        $cacheKey = $connection.ConnectionId
+        $cacheable = $true
+    }
+    else {
+        $resolvedUrl = $Url.TrimEnd('/')
+
+        if ($NoAuthentication) {
+            $authentication = 'None'
+            $resolvedUsername = $null
+            $plainPassword = $null
+        }
+        else {
+            $authentication = 'Credential'
+            $resolvedUsername = $Credential.UserName
+            $plainPassword = $Credential.GetNetworkCredential().Password
+        }
     }
 
-    $connection = Resolve-HomebridgeConnection @resolveParameters
-    $requestUri = "$($connection.Url)$Path"
+    $requestUri = "$resolvedUrl$Path"
+
+    if ($null -ne $Query -and $Query.Count -gt 0) {
+        $queryParts = foreach ($key in @($Query.Keys | Sort-Object)) {
+            foreach ($value in @($Query[$key])) {
+                if ($null -ne $value) {
+                    "$([System.Uri]::EscapeDataString([System.String] $key))=$([System.Uri]::EscapeDataString([System.String] $value))"
+                }
+            }
+        }
+
+        if (@($queryParts).Count -gt 0) {
+            $requestUri += '?' + ($queryParts -join '&')
+        }
+    }
 
     $changesState = $Method -ne 'GET' -or $PSBoundParameters.ContainsKey('OutFile')
+
     if ($changesState -and -not $PSCmdlet.ShouldProcess($requestUri, "$Method Homebridge API request")) {
         return
     }
 
-    if ($null -ne $Query) {
-        $parts = foreach ($key in @($Query.Keys | Sort-Object)) {
-            foreach ($value in @($Query[$key])) {
-                if ($null -ne $value) {
-                    '{0}={1}' -f [System.Uri]::EscapeDataString([System.String] $key), [System.Uri]::EscapeDataString([System.String] $value)
+    $token = $null
+
+    try {
+        for ($attempt = 0; $attempt -lt 2; $attempt++) {
+            if ($cacheable -and $script:HomebridgeAccessTokens.ContainsKey($cacheKey)) {
+                $token = $script:HomebridgeAccessTokens[$cacheKey]
+            }
+
+            if ([System.String]::IsNullOrWhiteSpace($token)) {
+                $authenticationUri = if ($authentication -eq 'Credential') {
+                    "$resolvedUrl/api/auth/login"
+                }
+                else {
+                    "$resolvedUrl/api/auth/noauth"
+                }
+
+                $authenticationParameters = @{
+                    Uri         = $authenticationUri
+                    Method      = 'POST'
+                    ErrorAction = $ErrorActionPreference
+                    Verbose     = $VerbosePreference
+                    Debug       = $DebugPreference
+                }
+
+                if ($authentication -eq 'Credential') {
+                    $authenticationBody = @{
+                        username = $resolvedUsername
+                        password = $plainPassword
+                    }
+                    $authenticationParameters.ContentType = 'application/json'
+                    $authenticationParameters.Body = $authenticationBody | ConvertTo-Json
+                }
+
+                $authenticationResponse = Invoke-RestMethod @authenticationParameters
+                $authenticationParameters.Body = $null
+                $token = [System.String] $authenticationResponse.access_token
+
+                if ([System.String]::IsNullOrWhiteSpace($token)) {
+                    throw 'The authentication response did not contain an access token.'
+                }
+
+                # Explicit connections must not add short-lived tokens to the named-connection cache.
+                if ($cacheable) {
+                    $script:HomebridgeAccessTokens[$cacheKey] = $token
                 }
             }
-        }
-        if (@($parts).Count -gt 0) { $requestUri += '?' + ($parts -join '&') }
-    }
 
-    for ($attempt = 0; $attempt -lt 2; $attempt++) {
-        $token = Get-HomebridgeAccessToken -Connection $connection
-        $parameters = @{
-            Uri         = $requestUri
-            Method      = $Method
-            Headers     = @{ Authorization = "Bearer $token" }
-            ErrorAction = 'Stop'
-        }
-
-        if ($PSBoundParameters.ContainsKey('Body')) {
-            $parameters.ContentType = 'application/json'
-            $parameters.Body = if ($Body -is [System.String]) { $Body } else { $Body | ConvertTo-Json -Depth 20 }
-        }
-        if ($PSBoundParameters.ContainsKey('OutFile')) { $parameters.OutFile = $OutFile }
-
-        try {
-            $response = Invoke-HomebridgeHttpRequest -Parameters $parameters
-
-            if (-not $connection.Cacheable) {
-                Clear-HomebridgeAccessToken -Connection $connection
+            $requestParameters = @{
+                Uri         = $requestUri
+                Method      = $Method
+                Headers     = @{
+                    Authorization = "Bearer $token"
+                }
+                ErrorAction = $ErrorActionPreference
+                Verbose     = $VerbosePreference
+                Debug       = $DebugPreference
             }
 
-            return $response
-        }
-        catch {
-            $statusCode = if ($null -ne $_.Exception.PSObject.Properties['StatusCode'] -and $null -ne $_.Exception.StatusCode) {
-                [System.Int32] $_.Exception.StatusCode
-            }
-            elseif ($null -ne $_.Exception.Response) {
-                [System.Int32] $_.Exception.Response.StatusCode
-            }
-            else {
-                0
-            }
-            $authenticationRejected = $statusCode -in @(401, 403)
-
-            if ($authenticationRejected -and $attempt -eq 0) {
-                Clear-HomebridgeAccessToken -Connection $connection
-                continue
+            if ($PSBoundParameters.ContainsKey('Body')) {
+                $requestParameters.ContentType = 'application/json'
+                $requestParameters.Body = if ($Body -is [System.String]) {
+                    $Body
+                }
+                else {
+                    $Body | ConvertTo-Json -Depth 20
+                }
             }
 
-            $message = Protect-HomebridgeErrorMessage -Message $_.Exception.Message -Secret @($token)
-            $exception = [System.Net.Http.HttpRequestException]::new("Homebridge API $Method request to '$requestUri' failed. $message", $_.Exception)
-            $errorRecord = New-HomebridgeErrorRecord -Exception $exception -Category ConnectionError -ErrorId 'HomebridgeApiRequestFailed' -TargetObject $requestUri -Activity $MyInvocation.MyCommand.Name
-
-            if (-not $connection.Cacheable) {
-                Clear-HomebridgeAccessToken -Connection $connection
+            if ($PSBoundParameters.ContainsKey('OutFile')) {
+                $requestParameters.OutFile = $OutFile
             }
 
-            Invoke-HomebridgeErrorHandler -Cmdlet $PSCmdlet -ErrorRecord $errorRecord -OriginalErrorAction $originalErrorAction
-            return
+            Write-Verbose "Invoking $Method request to `"$requestUri`"."
+
+            try {
+                return Invoke-RestMethod @requestParameters
+            }
+            catch {
+                $statusCode = if ($null -ne $_.Exception.PSObject.Properties['StatusCode'] -and $null -ne $_.Exception.StatusCode) {
+                    [System.Int32] $_.Exception.StatusCode
+                }
+                elseif ($null -ne $_.Exception.PSObject.Properties['Response'] -and $null -ne $_.Exception.Response) {
+                    [System.Int32] $_.Exception.Response.StatusCode
+                }
+                else {
+                    0
+                }
+
+                # Renew authorization one time. A second authorization failure remains visible to the caller.
+                if ($statusCode -in @(401, 403) -and $attempt -eq 0) {
+                    if ($cacheable) {
+                        [void] $script:HomebridgeAccessTokens.Remove($cacheKey)
+                    }
+                    $token = $null
+                    continue
+                }
+
+                throw
+            }
         }
     }
+    catch {
+        $detailParts = @($_.Exception.Message)
+        if ($null -ne $_.ErrorDetails -and -not [System.String]::IsNullOrWhiteSpace($_.ErrorDetails.Message)) {
+            $detailParts += $_.ErrorDetails.Message
+        }
+        $sensitiveValues = @($token, $plainPassword)
+        $details = Protect-PSHomebridgeSensitiveText -Text ($detailParts -join ' ') -SensitiveValue $sensitiveValues
+        $message = "Homebridge API $Method request to '$requestUri' failed. $($details.Trim())"
+        $exception = [System.Net.Http.HttpRequestException]::new($message)
+        $errorRecordParameters = @{
+            Exception    = $exception
+            Category     = 'ConnectionError'
+            ErrorId      = 'HomebridgeApiRequestFailed'
+            TargetObject = $requestUri
+            Activity     = $MyInvocation.MyCommand.Name
+        }
+        $errorRecord = New-PSHomebridgeErrorRecord @errorRecordParameters
 
-    if (-not $connection.Cacheable) { Clear-HomebridgeAccessToken -Connection $connection }
+        $errorHandlerParameters = @{
+            Cmdlet              = $PSCmdlet
+            ErrorRecord         = $errorRecord
+            OriginalErrorAction = $originalErrorAction
+            LogMessage          = $message
+            SensitiveValue      = $sensitiveValues
+        }
+        Invoke-PSHomebridgeFunctionErrorHandler @errorHandlerParameters
+        return
+    }
+    finally {
+        $plainPassword = $null
+        if ($null -ne $authenticationParameters -and $authenticationParameters.ContainsKey('Body')) {
+            $authenticationParameters.Body = $null
+        }
+    }
 }

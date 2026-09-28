@@ -1,12 +1,12 @@
-﻿function Get-HomebridgeBackup {
+﻿function Find-HomebridgePlugin {
     <#
     .SYNOPSIS
-        Gets scheduled Homebridge backups.
+        Finds Homebridge plugins in the package registry.
 
     .DESCRIPTION
-        This function returns scheduled backup records, or the next scheduled backup when the caller sets Next.
+        This function asks Homebridge to search the NPM registry and returns complete matching plugin objects.
 
-        It does not create, download, or remove backups.
+        The request contacts an external package provider. Provider availability and rate limits can affect the request.
 
     .PARAMETER InstanceName
         The saved connection name.
@@ -20,18 +20,13 @@
     .PARAMETER NoAuthentication
         Indicates authentication is disabled.
 
-    .PARAMETER Next
-        Returns the next scheduled backup information.
+    .PARAMETER Query
+        The plugin search text.
 
     .EXAMPLE
-        Get-HomebridgeBackup -InstanceName home
+        Find-HomebridgePlugin -InstanceName home -Query camera
 
-        Returns all scheduled backups from the saved connection named home.
-
-    .EXAMPLE
-        Get-HomebridgeBackup -InstanceName home -Next
-
-        Returns the next scheduled-backup time from the saved connection named home.
+        Returns Homebridge plugins matching camera from the NPM registry.
 
     .INPUTS
         None.
@@ -39,13 +34,13 @@
         You cannot pipe objects to this function.
 
     .OUTPUTS
-        PSHomebridge.Backup or PSHomebridge.BackupSchedule.
+        PSHomebridge.PluginSearchResult.
 
-        This function returns complete backup objects.
+        This function returns complete plugin search-result objects.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Named')]
-    [OutputType('PSHomebridge.Backup', 'PSHomebridge.BackupSchedule')]
-    param (
+    [OutputType('PSHomebridge.PluginSearchResult')]
+    param(
         [Parameter(ParameterSetName = 'Named')]
         [ValidatePattern('.*\S.*')]
         [System.String]
@@ -65,16 +60,16 @@
         [System.Management.Automation.SwitchParameter]
         $NoAuthentication,
 
-        [Parameter()]
-        [System.Management.Automation.SwitchParameter]
-        $Next
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrWhiteSpace()]
+        [System.String]
+        $Query
     )
 
-    $path = if ($Next) { '/api/backup/scheduled-backups/next' } else { '/api/backup/scheduled-backups' }
-
+    $escapedQuery = [System.Uri]::EscapeDataString($Query)
     $request = @{
         Method = 'GET'
-        Path   = $path
+        Path   = "/api/plugins/search/$escapedQuery"
     }
 
     foreach ($key in @('InstanceName', 'Url', 'Credential', 'NoAuthentication')) {
@@ -83,14 +78,12 @@
         }
     }
 
-    $typeName = if ($Next) { 'PSHomebridge.BackupSchedule' } else { 'PSHomebridge.Backup' }
-
-    foreach ($backup in (Invoke-HomebridgeApiRequest @request)) {
-        if ($null -eq $backup) {
+    foreach ($result in (Invoke-HomebridgeApiRequest @request)) {
+        if ($null -eq $result) {
             continue
         }
 
-        $backup.PSObject.TypeNames.Insert(0, $typeName)
-        $backup
+        $result.PSObject.TypeNames.Insert(0, 'PSHomebridge.PluginSearchResult')
+        $result
     }
 }

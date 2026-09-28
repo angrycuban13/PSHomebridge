@@ -1,29 +1,53 @@
-﻿function Save-HomebridgeBackup {
+function Save-HomebridgeBackup {
     <#
     .SYNOPSIS
         Downloads a scheduled Homebridge backup.
+
     .DESCRIPTION
-        This function downloads to a temporary sibling and atomically places the completed file at the explicit destination.
-    .PARAMETER Name
+        This function saves a current instance backup or one scheduled backup to an explicit local path. It creates a missing parent directory and returns the saved file.
+
+        It rejects a directory destination. It also rejects an existing file unless the caller sets Force. The operation supports ShouldProcess.
+
+    .PARAMETER InstanceName
         The saved connection name.
+
     .PARAMETER Url
         An explicit Homebridge URL.
+
     .PARAMETER Credential
         Explicit credentials.
+
     .PARAMETER NoAuthentication
         Indicates authentication is disabled.
+
     .PARAMETER BackupId
-        The scheduled backup identifier.
+        The scheduled backup identifier. When omitted, the function downloads a current instance backup.
+
     .PARAMETER OutFile
         The explicit local destination.
+
     .PARAMETER Force
         Permits replacing an existing destination file.
+
     .EXAMPLE
-        Save-HomebridgeBackup -Name home -BackupId backup-1 -OutFile './backup.tar.gz'
+        Save-HomebridgeBackup -InstanceName home -BackupId backup-1 -OutFile './backup.tar.gz'
+
+        Saves backup-1 at the requested destination and returns the saved file.
+
+    .EXAMPLE
+        Save-HomebridgeBackup -InstanceName home -OutFile './homebridge-current.tar.gz'
+
+        Creates and saves a current backup of the instance.
+
     .INPUTS
-        None. You cannot pipe objects to this function.
+        None.
+
+        You cannot pipe objects to this function.
+
     .OUTPUTS
-        System.IO.FileInfo. This function returns the completed download file.
+        System.IO.FileInfo.
+
+        This function returns the completed download file.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium', DefaultParameterSetName = 'Named')]
     [OutputType([System.IO.FileInfo])]
@@ -31,11 +55,11 @@
         [Parameter(ParameterSetName = 'Named')]
         [ValidatePattern('.*\S.*')]
         [System.String]
-        $Name,
+        $InstanceName,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'ExplicitCredential')]
         [Parameter(Mandatory = $true, ParameterSetName = 'ExplicitNoAuthentication')]
-        [ValidateScript({ Test-HomebridgeUrl -Url $_ })]
+        [ValidateScript({ Test-PSHomebridgeUrl -Url $_ })]
         [System.String]
         $Url,
 
@@ -47,7 +71,7 @@
         [System.Management.Automation.SwitchParameter]
         $NoAuthentication,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter()]
         [ValidateNotNullOrEmpty()]
         [System.String]
         $BackupId,
@@ -62,23 +86,118 @@
         $Force
     )
 
-    $destination = Resolve-HomebridgeDownloadPath -Path $OutFile
-    if ((Test-Path -LiteralPath $destination -PathType Leaf) -and -not $Force) { throw "OutFile '$destination' already exists. Use Force to replace it." }
-    if (-not $PSCmdlet.ShouldProcess($destination, "Download Homebridge backup '$BackupId'")) { return }
+    if ($PSBoundParameters.ContainsKey('ErrorAction')) {
+        $originalErrorAction = [System.Management.Automation.ActionPreference] $PSBoundParameters.ErrorAction
+    }
+    else {
+        $originalErrorAction = [System.Management.Automation.ActionPreference] $ErrorActionPreference
+    }
+
+    $ErrorActionPreference = 'Stop'
+
+    $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutFile)
+
+    if (Test-Path -LiteralPath $destination -PathType Container) {
+        $message = "OutFile '$destination' is a directory."
+        $exception = [System.ArgumentException]::new($message, 'OutFile')
+        $errorRecordParameters = @{
+            Exception         = $exception
+            Category          = 'InvalidArgument'
+            ErrorId           = 'HomebridgeBackupDestinationIsDirectory'
+            TargetObject      = $destination
+            Activity          = $MyInvocation.MyCommand.Name
+            RecommendedAction = 'Specify a file path for OutFile.'
+        }
+        $errorRecord = New-PSHomebridgeErrorRecord @errorRecordParameters
+
+        $errorHandlerParameters = @{
+            Cmdlet              = $PSCmdlet
+            ErrorRecord         = $errorRecord
+            OriginalErrorAction = $originalErrorAction
+            NoLog               = $true
+        }
+        Invoke-PSHomebridgeFunctionErrorHandler @errorHandlerParameters
+        return
+    }
+
+    if ((Test-Path -LiteralPath $destination -PathType Leaf) -and -not $Force) {
+        $message = "OutFile '$destination' already exists."
+        $exception = [System.IO.IOException]::new($message)
+        $errorRecordParameters = @{
+            Exception         = $exception
+            Category          = 'ResourceExists'
+            ErrorId           = 'HomebridgeBackupDestinationExists'
+            TargetObject      = $destination
+            Activity          = $MyInvocation.MyCommand.Name
+            RecommendedAction = 'Specify a different path or use Force to replace the file.'
+        }
+        $errorRecord = New-PSHomebridgeErrorRecord @errorRecordParameters
+
+        $errorHandlerParameters = @{
+            Cmdlet              = $PSCmdlet
+            ErrorRecord         = $errorRecord
+            OriginalErrorAction = $originalErrorAction
+            NoLog               = $true
+        }
+        Invoke-PSHomebridgeFunctionErrorHandler @errorHandlerParameters
+        return
+    }
+
+    $backupDescription = if ($PSBoundParameters.ContainsKey('BackupId')) {
+        "scheduled Homebridge backup '$BackupId'"
+    }
+    else {
+        'current Homebridge instance backup'
+    }
+
+    if (-not $PSCmdlet.ShouldProcess($destination, "Download $backupDescription")) {
+        return
+    }
 
     $directory = Split-Path -Parent $destination
-    if (-not (Test-Path -LiteralPath $directory -PathType Container)) { $null = New-Item -ItemType Directory -Path $directory -Force }
+
+    if (-not (Test-Path -LiteralPath $directory -PathType Container)) {
+        $null = New-Item -ItemType Directory -Path $directory -Force
+    }
+
+    # Keep an incomplete download outside the final path.
     $temporaryPath = Join-Path $directory ".$([System.IO.Path]::GetFileName($destination)).$([System.Guid]::NewGuid().ToString('N')).tmp"
-    $escapedBackupId = [System.Uri]::EscapeDataString($BackupId)
-    $request = @{ Method = 'GET'; Path = "/api/backup/scheduled-backups/$escapedBackupId"; OutFile = $temporaryPath; Confirm = $false }
-    foreach ($key in @('Name', 'Url', 'Credential', 'NoAuthentication')) { if ($PSBoundParameters.ContainsKey($key)) { $request[$key] = $PSBoundParameters[$key] } }
+    $path = if ($PSBoundParameters.ContainsKey('BackupId')) {
+        $escapedBackupId = [System.Uri]::EscapeDataString($BackupId)
+        "/api/backup/scheduled-backups/$escapedBackupId"
+    }
+    else {
+        '/api/backup/download'
+    }
+
+    $request = @{
+        Method  = 'GET'
+        Path    = $path
+        OutFile = $temporaryPath
+        Confirm = $false
+    }
+
+    foreach ($key in @('InstanceName', 'Url', 'Credential', 'NoAuthentication')) {
+        if ($PSBoundParameters.ContainsKey($key)) {
+            $request[$key] = $PSBoundParameters[$key]
+        }
+    }
 
     try {
         $null = Invoke-HomebridgeApiRequest @request
-        Move-Item -LiteralPath $temporaryPath -Destination $destination -Force:$Force -ErrorAction Stop
+        $moveParameters = @{
+            LiteralPath = $temporaryPath
+            Destination = $destination
+            Force       = $Force
+            ErrorAction = 'Stop'
+        }
+        Move-Item @moveParameters
         Get-Item -LiteralPath $destination
     }
     finally {
-        if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) { Remove-Item -LiteralPath $temporaryPath -Force }
+        # Remove the incomplete file after a failed request or move.
+        if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {
+            Remove-Item -LiteralPath $temporaryPath -Force
+        }
     }
 }

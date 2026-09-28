@@ -2,167 +2,55 @@
 
 PSHomebridge is a reusable PowerShell 7 client for the Homebridge UI API.
 
+## Connection
+
 ```powershell
 $credential = Get-Credential
-New-HomebridgeConnection -Name home -Url 'https://homebridge.example' -Credential $credential
+Set-PSHomebridgeConnection -InstanceName home -Url 'https://homebridge.example' -Credential $credential
 
-Get-HomebridgePlugin -Name home -UpdateAvailable
-Get-HomebridgeStatus -Name home -Type HomebridgeVersion
-Get-HomebridgeBackup -Name home
+Get-PSHomebridgeConnection -InstanceName home
 ```
 
-The initial consumer slice intentionally covers installed plugins, Homebridge version status, scheduled-backup discovery, and safe backup downloads. See [Connections](PSHomebridge/docs/Connections.md) and [Consumer migration](PSHomebridge/docs/Consumer-Migration.md).
+Named connections store ordinary connection data and an encrypted password. Access tokens remain in memory and are cached separately for each saved connection. Explicit `-Url` and `-Credential` or `-NoAuthentication` parameters are available for ephemeral use.
 
-# API Endpoints Checklist
+## Status and diagnostics
 
-## Accessories
+```powershell
+Get-HomebridgeStatus -InstanceName home -Type HomebridgeVersion
+Get-HomebridgeStatus -InstanceName home -Type ChildBridge
+Get-HomebridgeAccessory -InstanceName home
+Get-HomebridgeAccessoryLayout -InstanceName home
+Get-HomebridgeServerDiagnostic -InstanceName home -Type NetworkOverview
+```
 
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **GET**    | `/api/accessories`                                 | ✅     |
-| **GET**    | `/api/accessories/layout`                          | ✅     |
-| **GET**    | `/api/accessories/{uniqueId}`                      | ✅     |
-| **PUT**    | `/api/accessories/{uniqueId}`                      | ❌     |
+`Get-HomebridgeStatus` supports `ChildBridge`, `Cpu`, `Homebridge`, `HomebridgeVersion`, `Memory`, `Network`, `NodeJs`, `RaspberryPiThrottling`, `ServerInformation`, and `Uptime`. Raspberry Pi throttling is available only on Raspberry Pi hosts.
 
-## Authentication
-
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **GET**    | `/api/auth/check`                                  | ✅     |
-| **GET**    | `/api/auth/settings`                               | ✅     |
-| **POST**   | `/api/auth/login`                                  | ✅     |
-| **POST**   | `/api/auth/noauth`                                 | ✅     |
-
-## Backup & Restore
-
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **DELETE** | `/api/backup/scheduled-backups/{backupId}`         | ❌     |
-| **GET**    | `/api/backup/download`                             | ✅     |
-| **GET**    | `/api/backup/scheduled-backups`                    | ✅     |
-| **GET**    | `/api/backup/scheduled-backups/next`               | ✅     |
-| **GET**    | `/api/backup/scheduled-backups/{backupId}`         | ✅     |
-| **POST**   | `/api/backup/restore`                              | ❌     |
-| **POST**   | `/api/backup/restore/hbfx`                         | ❌     |
-| **POST**   | `/api/backup/scheduled-backups/{backupId}/restore` | ❌     |
-| **PUT**    | `/api/backup/restart`                              | ❌     |
-| **PUT**    | `/api/backup/restore/trigger`                      | ❌     |
-
-## Homebridge
-
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **DELETE** | `/api/server/cached-accessories`                   | ❌     |
-| **DELETE** | `/api/server/cached-accessories/{uuid}`            | ❌     |
-| **DELETE** | `/api/server/pairings`                             | ❌     |
-| **DELETE** | `/api/server/pairings/accessories`                 | ❌     |
-| **DELETE** | `/api/server/pairings/{deviceId}`                  | ❌     |
-| **DELETE** | `/api/server/pairings/{deviceId}/accessories`      | ❌     |
-| **GET**    | `/api/server/cached-accessories`                   | ✅     |
-| **GET**    | `/api/server/mdns-advertiser`                      | ✅     |
-| **GET**    | `/api/server/network-interfaces/bridge`            | ✅     |
-| **GET**    | `/api/server/network-interfaces/system`            | ✅     |
-| **GET**    | `/api/server/pairing`                              | ✅     |
-| **GET**    | `/api/server/pairings`                             | ✅     |
-| **GET**    | `/api/server/port`                                 | ✅     |
-| **GET**    | `/api/server/port/new`                             | ✅     |
-| **PUT**    | `/api/server/mdns-advertiser`                      | ❌     |
-| **PUT**    | `/api/server/name`                                 | ❌     |
-| **PUT**    | `/api/server/network-interfaces/bridge`            | ❌     |
-| **PUT**    | `/api/server/reset-cached-accessories`             | ❌     |
-| **PUT**    | `/api/server/reset-homebridge-accessory`           | ❌     |
-| **PUT**    | `/api/server/restart`                              | ❌     |
-| **PUT**    | `/api/server/restart/{deviceId}`                   | ❌     |
-| **PUT**    | `/api/server/start/{deviceId}`                     | ❌     |
-| **PUT**    | `/api/server/stop/{deviceId}`                      | ❌     |
-
-## Homebridge Config Editor
-
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **DELETE** | `/api/config-editor/backups`                       | ❌     |
-| **GET**    | `/api/config-editor`                               | ✅     |
-| **GET**    | `/api/config-editor/backups`                       | ✅     |
-| **GET**    | `/api/config-editor/backups/{backupId}`            | ✅     |
-| **GET**    | `/api/config-editor/plugin/{pluginName}`           | ✅     |
-| **POST**   | `/api/config-editor`                               | ❌     |
-| **POST**   | `/api/config-editor/plugin/{pluginName}`           | ❌     |
-| **PUT**    | `/api/config-editor/plugin/{pluginName}/disable`   | ❌     |
-| **PUT**    | `/api/config-editor/plugin/{pluginName}/enable`    | ❌     |
-| **PUT**    | `/api/config-editor/ui`                            | ❌     |
-
-## Platform - Docker
-
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **GET**    | `/api/platform-tools/docker/startup-script`        | ✅     |
-| **PUT**    | `/api/platform-tools/docker/restart-container`     | ❌     |
-| **PUT**    | `/api/platform-tools/docker/startup-script`        | ❌     |
-
-## Platform - HB Service
-
-| Method     | Endpoint                                                       | Status |
-| ---------- | -------------------------------------------------------------- | ------ |
-| **GET**    | `/api/platform-tools/hb-service/homebridge-startup-settings`   | ✅     |
-| **GET**    | `/api/platform-tools/hb-service/log/download`                  | ✅     |
-| **PUT**    | `/api/platform-tools/hb-service/homebridge-startup-settings`   | ❌     |
-| **PUT**    | `/api/platform-tools/hb-service/log/truncate`                  | ❌     |
-| **PUT**    | `/api/platform-tools/hb-service/set-full-service-restart-flag` | ❌     |
-
-## Platform - Linux
-
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **PUT**    | `/api/platform-tools/linux/restart-host`           | ❌     |
-| **PUT**    | `/api/platform-tools/linux/shutdown-host`          | ❌     |
+Requesting one accessory by `-UniqueId` refreshes its current characteristics. This can contact or wake the physical device.
 
 ## Plugins
 
-| Method     | Endpoint                                                  | Status |
-| ---------- | --------------------------------------------------------- | ------ |
-| **GET**    | `/api/plugins`                                            | ✅     |
-| **GET**    | `/api/plugins/alias/{pluginName}`                         | ✅     |
-| **GET**    | `/api/plugins/changelog/{pluginName}`                     | ✅     |
-| **GET**    | `/api/plugins/config-schema/{pluginName}`                 | ✅     |
-| **GET**    | `/api/plugins/custom-plugins/homebridge-deconz/dump-file` | ❌     |
-| **GET**    | `/api/plugins/custom-plugins/homebridge-hue/dump-file`    | ❌     |
-| **GET**    | `/api/plugins/lookup/{pluginName}`                        | ✅     |
-| **GET**    | `/api/plugins/lookup/{pluginName}/versions`               | ✅     |
-| **GET**    | `/api/plugins/release/{pluginName}`                       | ✅     |
-| **GET**    | `/api/plugins/search/{query}`                             | ✅     |
-| **GET**    | `/api/plugins/settings-ui/{pluginName}/*`                 | ❌     |
+```powershell
+Get-HomebridgePlugin -InstanceName home -UpdateAvailable
+Get-HomebridgePluginInformation -InstanceName home -PluginName homebridge-delay-switch -Type Schema
+Get-HomebridgePluginInformation -InstanceName home -PluginName homebridge-delay-switch -Type AvailableVersion
+Find-HomebridgePlugin -InstanceName home -Query camera
+```
 
-## Server Status
+Registry, release, version, and search requests contact external package or source-code providers through Homebridge. A plugin can legitimately return no schema, changelog, registry record, or release information.
 
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **GET**    | `/api/status/cpu`                                  | ✅     |
-| **GET**    | `/api/status/homebridge`                           | ✅     |
-| **GET**    | `/api/status/homebridge-version`                   | ✅     |
-| **GET**    | `/api/status/homebridge/child-bridges`             | ✅     |
-| **GET**    | `/api/status/network`                              | ✅     |
-| **GET**    | `/api/status/nodejs`                               | ✅     |
-| **GET**    | `/api/status/ram`                                  | ✅     |
-| **GET**    | `/api/status/rpi/throttled`                        | ✅     |
-| **GET**    | `/api/status/server-information`                   | ✅     |
-| **GET**    | `/api/status/uptime`                               | ✅     |
+## Backups
 
-## Setup Wizard
+```powershell
+Get-HomebridgeBackup -InstanceName home
+Get-HomebridgeBackup -InstanceName home -Next
+New-HomebridgeBackup -InstanceName home
+Save-HomebridgeBackup -InstanceName home -OutFile './homebridge-current.tar.gz'
+Save-HomebridgeBackup -InstanceName home -BackupId backup-id -OutFile './homebridge-scheduled.tar.gz'
+Remove-HomebridgeBackup -InstanceName home -BackupId backup-id
+```
 
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **GET**    | `/api/setup-wizard/get-setup-wizard-token`         | ✅     |
-| **POST**   | `/api/setup-wizard/create-first-user`              | ❌     |
+Backup creation, download, and removal support `ShouldProcess`. Downloads use a temporary file and move it to the requested destination only after the API request succeeds.
 
-## User Management
+## Intentionally unsupported
 
-| Method     | Endpoint                                           | Status |
-| ---------- | -------------------------------------------------- | ------ |
-| **DELETE** | `/api/users/{userId}`                              | ❌     |
-| **GET**    | `/api/users`                                       | ✅     |
-| **PATCH**  | `/api/users/{userId}`                              | ❌     |
-| **POST**   | `/api/users`                                       | ❌     |
-| **POST**   | `/api/users/change-password`                       | ❌     |
-| **POST**   | `/api/users/otp/activate`                          | ❌     |
-| **POST**   | `/api/users/otp/deactivate`                        | ❌     |
-| **POST**   | `/api/users/otp/setup`                             | ❌     |
+PSHomebridge does not wrap restore operations, bulk update orchestration, configuration editing, accessory mutation, service or host control, platform-specific operations, UI internals, setup, terminal sessions, or user and 2FA management. Advanced callers can use `Invoke-HomebridgeApiRequest` for unsupported endpoints.

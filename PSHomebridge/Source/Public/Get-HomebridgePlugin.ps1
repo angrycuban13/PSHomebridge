@@ -1,27 +1,47 @@
-function Get-HomebridgePlugin {
+﻿function Get-HomebridgePlugin {
     <#
     .SYNOPSIS
         Gets installed Homebridge plugins.
+
     .DESCRIPTION
-        This function returns complete installed-plugin objects and can filter those with updates available.
-    .PARAMETER Name
+        This function returns installed plugins and preserves all properties returned by Homebridge.
+
+        Include accepts only config.
+
+        UpdateAvailable returns only plugins that report an available update.
+
+    .PARAMETER InstanceName
         The saved connection name.
+
     .PARAMETER Url
         An explicit Homebridge URL.
+
     .PARAMETER Credential
         Explicit credentials.
+
     .PARAMETER NoAuthentication
         Indicates authentication is disabled.
+
     .PARAMETER Include
         Optional API extras such as config.
+
     .PARAMETER UpdateAvailable
         Returns only plugins reporting an available update.
+
     .EXAMPLE
-        Get-HomebridgePlugin -Name home -UpdateAvailable
+        Get-HomebridgePlugin -InstanceName home -UpdateAvailable
+
+        Returns complete installed-plugin objects that report an available update.
+
     .INPUTS
-        None. You cannot pipe objects to this function.
+        None.
+
+        You cannot pipe objects to this function.
+
     .OUTPUTS
-        PSHomebridge.Plugin. This function returns complete plugin objects.
+        PSHomebridge.Plugin.
+
+        This function returns complete plugin objects.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Named')]
     [OutputType('PSHomebridge.Plugin')]
@@ -29,11 +49,11 @@ function Get-HomebridgePlugin {
         [Parameter(ParameterSetName = 'Named')]
         [ValidatePattern('.*\S.*')]
         [System.String]
-        $Name,
+        $InstanceName,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'ExplicitCredential')]
         [Parameter(Mandatory = $true, ParameterSetName = 'ExplicitNoAuthentication')]
-        [ValidateScript({ Test-HomebridgeUrl -Url $_ })]
+        [ValidateScript({ Test-PSHomebridgeUrl -Url $_ })]
         [System.String]
         $Url,
 
@@ -55,12 +75,26 @@ function Get-HomebridgePlugin {
         $UpdateAvailable
     )
 
-    $request = @{ Method = 'GET'; Path = '/api/plugins' }
-    foreach ($key in @('Name', 'Url', 'Credential', 'NoAuthentication')) { if ($PSBoundParameters.ContainsKey($key)) { $request[$key] = $PSBoundParameters[$key] } }
-    if ($PSBoundParameters.ContainsKey('Include')) { $request.Query = @{ include = $Include -join ',' } }
+    $request = @{
+        Method = 'GET'
+        Path   = '/api/plugins'
+    }
 
-    foreach ($plugin in @(Invoke-HomebridgeApiRequest @request)) {
-        if ($null -eq $plugin -or ($UpdateAvailable -and $plugin.updateAvailable -ne $true)) { continue }
+    foreach ($key in @('InstanceName', 'Url', 'Credential', 'NoAuthentication')) {
+        if ($PSBoundParameters.ContainsKey($key)) {
+            $request[$key] = $PSBoundParameters[$key]
+        }
+    }
+
+    if ($PSBoundParameters.ContainsKey('Include')) {
+        $request.Query = @{ include = $Include -join ',' }
+    }
+
+    foreach ($plugin in (Invoke-HomebridgeApiRequest @request)) {
+        if ($null -eq $plugin -or ($UpdateAvailable -and $plugin.updateAvailable -ne $true)) {
+            continue
+        }
+
         $plugin.PSObject.TypeNames.Insert(0, 'PSHomebridge.Plugin')
         $plugin
     }

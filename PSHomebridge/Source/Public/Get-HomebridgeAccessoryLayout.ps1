@@ -1,12 +1,10 @@
-﻿function Get-HomebridgeBackup {
+﻿function Get-HomebridgeAccessoryLayout {
     <#
     .SYNOPSIS
-        Gets scheduled Homebridge backups.
+        Gets the Homebridge accessory layout.
 
     .DESCRIPTION
-        This function returns scheduled backup records, or the next scheduled backup when the caller sets Next.
-
-        It does not create, download, or remove backups.
+        This function returns the accessory and room layout for the authenticating user. It preserves every property returned by Homebridge.
 
     .PARAMETER InstanceName
         The saved connection name.
@@ -20,18 +18,10 @@
     .PARAMETER NoAuthentication
         Indicates authentication is disabled.
 
-    .PARAMETER Next
-        Returns the next scheduled backup information.
-
     .EXAMPLE
-        Get-HomebridgeBackup -InstanceName home
+        Get-HomebridgeAccessoryLayout -InstanceName home
 
-        Returns all scheduled backups from the saved connection named home.
-
-    .EXAMPLE
-        Get-HomebridgeBackup -InstanceName home -Next
-
-        Returns the next scheduled-backup time from the saved connection named home.
+        Returns the saved accessory and room layout for the current user.
 
     .INPUTS
         None.
@@ -39,13 +29,13 @@
         You cannot pipe objects to this function.
 
     .OUTPUTS
-        PSHomebridge.Backup or PSHomebridge.BackupSchedule.
+        PSHomebridge.AccessoryLayout.
 
-        This function returns complete backup objects.
+        This function returns complete accessory-layout objects.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Named')]
-    [OutputType('PSHomebridge.Backup', 'PSHomebridge.BackupSchedule')]
-    param (
+    [OutputType('PSHomebridge.AccessoryLayout')]
+    param(
         [Parameter(ParameterSetName = 'Named')]
         [ValidatePattern('.*\S.*')]
         [System.String]
@@ -63,18 +53,12 @@
 
         [Parameter(Mandatory = $true, ParameterSetName = 'ExplicitNoAuthentication')]
         [System.Management.Automation.SwitchParameter]
-        $NoAuthentication,
-
-        [Parameter()]
-        [System.Management.Automation.SwitchParameter]
-        $Next
+        $NoAuthentication
     )
-
-    $path = if ($Next) { '/api/backup/scheduled-backups/next' } else { '/api/backup/scheduled-backups' }
 
     $request = @{
         Method = 'GET'
-        Path   = $path
+        Path   = '/api/accessories/layout'
     }
 
     foreach ($key in @('InstanceName', 'Url', 'Credential', 'NoAuthentication')) {
@@ -83,14 +67,12 @@
         }
     }
 
-    $typeName = if ($Next) { 'PSHomebridge.BackupSchedule' } else { 'PSHomebridge.Backup' }
-
-    foreach ($backup in (Invoke-HomebridgeApiRequest @request)) {
-        if ($null -eq $backup) {
+    foreach ($result in (Invoke-HomebridgeApiRequest @request)) {
+        if ($null -eq $result) {
             continue
         }
 
-        $backup.PSObject.TypeNames.Insert(0, $typeName)
-        $backup
+        $result.PSObject.TypeNames.Insert(0, 'PSHomebridge.AccessoryLayout')
+        $result
     }
 }

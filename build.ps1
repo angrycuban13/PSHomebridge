@@ -13,12 +13,8 @@ $outputRoot = Join-Path $PSScriptRoot 'PSHomebridge/Output/PSHomebridge'
 $outputDirectory = Join-Path $outputRoot $version
 
 function Invoke-Build {
-    if (Test-Path -LiteralPath $outputDirectory) {
-        Remove-Item -LiteralPath $outputDirectory -Recurse -Force
-    }
-
-    $null = New-Item -ItemType Directory -Path $outputDirectory -Force
-    Copy-Item -Path (Join-Path $sourceDirectory '*') -Destination $outputDirectory -Recurse -Force
+    $buildConfiguration = Join-Path $PSScriptRoot 'PSHomebridge/build.psd1'
+    Build-Module -SourcePath $buildConfiguration
     Test-ModuleManifest -Path (Join-Path $outputDirectory 'PSHomebridge.psd1') -ErrorAction Stop | Out-Null
 }
 
@@ -27,6 +23,7 @@ switch ($Task) {
         Invoke-Build
     }
     'Test' {
+        Invoke-Build
         Invoke-Pester -Path (Join-Path $PSScriptRoot 'PSHomebridge/Tests')
     }
     'Clean' {

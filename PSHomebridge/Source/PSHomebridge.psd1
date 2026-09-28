@@ -27,7 +27,7 @@
     CompanyName          = 'AngryCuban13'
 
     # Copyright statement for this module
-    Copyright            = '(c) AngryCuban13. Licensed under the MIT License.'
+    Copyright            = '(c) AngryCuban13. All rights reserved.'
 
     # Description of the functionality provided by this module
     Description          = 'PSHomebridge is a PowerShell client module for Homebridge.'
@@ -75,15 +75,21 @@
 
     # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
     FunctionsToExport    = @(
+        'Find-HomebridgePlugin'
+        'Get-HomebridgeAccessory'
+        'Get-HomebridgeAccessoryLayout'
         'Get-HomebridgeBackup'
-        'Get-HomebridgeConnection'
+        'Get-PSHomebridgeConnection'
         'Get-HomebridgePlugin'
+        'Get-HomebridgePluginInformation'
+        'Get-HomebridgeServerDiagnostic'
         'Get-HomebridgeStatus'
         'Invoke-HomebridgeApiRequest'
-        'New-HomebridgeConnection'
+        'New-HomebridgeBackup'
+        'Remove-HomebridgeBackup'
+        'Remove-PSHomebridgeConnection'
         'Save-HomebridgeBackup'
-        'Remove-HomebridgeConnection'
-        'Set-HomebridgeConnection'
+        'Set-PSHomebridgeConnection'
     )
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.

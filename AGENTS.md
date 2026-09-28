@@ -2,7 +2,8 @@
 
 - Target PowerShell 7 and use approved verbs, singular nouns, PascalCase parameters, and four-space indentation.
 - Keep one function per source file and match its filename.
-- Route endpoint wrappers through `Invoke-HomebridgeApiRequest`; only the private `Invoke-HomebridgeHttpRequest` transport may call `Invoke-RestMethod`.
+- Name module infrastructure functions `*-PSHomebridge`; reserve `*-Homebridge*` names for API operations and resource wrappers.
+- Route endpoint wrappers through `Invoke-HomebridgeApiRequest`; only `Invoke-HomebridgeApiRequest` may call `Invoke-RestMethod`.
 - Preserve upstream properties and attach stable `PSHomebridge.*` type names.
 - Keep workflows such as retention, notifications, scheduling, and retries across resources in consumers.
 - Persist ordinary connection configuration and encrypt only secrets. Never persist access tokens.

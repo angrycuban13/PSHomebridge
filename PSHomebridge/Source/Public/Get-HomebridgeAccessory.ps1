@@ -1,12 +1,12 @@
-﻿function Get-HomebridgeBackup {
+﻿function Get-HomebridgeAccessory {
     <#
     .SYNOPSIS
-        Gets scheduled Homebridge backups.
+        Gets Homebridge accessories.
 
     .DESCRIPTION
-        This function returns scheduled backup records, or the next scheduled backup when the caller sets Next.
+        This function returns all accessories or one accessory selected by UniqueId. It preserves every property returned by Homebridge.
 
-        It does not create, download, or remove backups.
+        A request for one accessory refreshes its characteristics. That request can contact or wake the physical device and can fail when the device is unavailable.
 
     .PARAMETER InstanceName
         The saved connection name.
@@ -20,18 +20,18 @@
     .PARAMETER NoAuthentication
         Indicates authentication is disabled.
 
-    .PARAMETER Next
-        Returns the next scheduled backup information.
+    .PARAMETER UniqueId
+        The unique accessory identifier. When omitted, the function returns all accessories.
 
     .EXAMPLE
-        Get-HomebridgeBackup -InstanceName home
+        Get-HomebridgeAccessory -InstanceName home
 
-        Returns all scheduled backups from the saved connection named home.
+        Returns all accessories from the saved instance.
 
     .EXAMPLE
-        Get-HomebridgeBackup -InstanceName home -Next
+        Get-HomebridgeAccessory -InstanceName home -UniqueId 'accessory-id'
 
-        Returns the next scheduled-backup time from the saved connection named home.
+        Refreshes and returns the accessory with the specified unique identifier.
 
     .INPUTS
         None.
@@ -39,13 +39,13 @@
         You cannot pipe objects to this function.
 
     .OUTPUTS
-        PSHomebridge.Backup or PSHomebridge.BackupSchedule.
+        PSHomebridge.Accessory.
 
-        This function returns complete backup objects.
+        This function returns complete accessory objects.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Named')]
-    [OutputType('PSHomebridge.Backup', 'PSHomebridge.BackupSchedule')]
-    param (
+    [OutputType('PSHomebridge.Accessory')]
+    param(
         [Parameter(ParameterSetName = 'Named')]
         [ValidatePattern('.*\S.*')]
         [System.String]
@@ -66,11 +66,17 @@
         $NoAuthentication,
 
         [Parameter()]
-        [System.Management.Automation.SwitchParameter]
-        $Next
+        [ValidateNotNullOrWhiteSpace()]
+        [System.String]
+        $UniqueId
     )
 
-    $path = if ($Next) { '/api/backup/scheduled-backups/next' } else { '/api/backup/scheduled-backups' }
+    $path = if ($PSBoundParameters.ContainsKey('UniqueId')) {
+        "/api/accessories/$([System.Uri]::EscapeDataString($UniqueId))"
+    }
+    else {
+        '/api/accessories'
+    }
 
     $request = @{
         Method = 'GET'
@@ -83,14 +89,12 @@
         }
     }
 
-    $typeName = if ($Next) { 'PSHomebridge.BackupSchedule' } else { 'PSHomebridge.Backup' }
-
-    foreach ($backup in (Invoke-HomebridgeApiRequest @request)) {
-        if ($null -eq $backup) {
+    foreach ($accessory in (Invoke-HomebridgeApiRequest @request)) {
+        if ($null -eq $accessory) {
             continue
         }
 
-        $backup.PSObject.TypeNames.Insert(0, $typeName)
-        $backup
+        $accessory.PSObject.TypeNames.Insert(0, 'PSHomebridge.Accessory')
+        $accessory
     }
 }

@@ -1,15 +1,25 @@
-function Import-HomebridgeConfiguration {
+﻿function Import-PSHomebridgeConfiguration {
     <#
     .SYNOPSIS
         Imports persisted PSHomebridge configuration.
+
     .DESCRIPTION
         This function imports saved connection records without decrypting their secrets.
+
     .EXAMPLE
-        Import-HomebridgeConfiguration
+        Import-PSHomebridgeConfiguration
+
+        Returns the persisted PSHomebridge connection records without decrypting passwords.
+
     .INPUTS
-        None. You cannot pipe objects to this function.
+        None.
+
+        You cannot pipe objects to this function.
+
     .OUTPUTS
-        System.Collections.Hashtable. This function returns raw connection configuration.
+        System.Collections.Hashtable.
+
+        This function returns raw connection configuration.
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.Hashtable])]

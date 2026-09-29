@@ -1,22 +1,32 @@
 # PSHomebridge repository instructions
 
-## Module design
+## Scope and boundaries
 
-- Target PowerShell 7. Use approved verbs, singular nouns, PascalCase parameters, and four-space indentation.
-- Keep one function in each source file. Match the file name to the function name.
-- Name module infrastructure functions `*-PSHomebridge`. Reserve `*-Homebridge*` names for API operations and resource wrappers.
+- Target PowerShell 7.
+- Keep retention, notifications, scheduling, and cross-resource retries in consumers.
+
+## API contracts
+
 - Route endpoint wrappers through `Invoke-HomebridgeApiRequest`. Only `Invoke-HomebridgeApiRequest` can call `Invoke-RestMethod`.
 - Preserve upstream properties. Add stable `PSHomebridge.*` type names without replacing response objects.
-- Keep retention, notifications, scheduling, and cross-resource retries in consumers.
-- Support saved named connections and explicit URL and credential parameters.
-- Encrypt only saved secrets. Never save access tokens.
 - Cache access tokens by connection identity. Do not use one global token.
+
+## Mutations and side effects
+
 - Add `ShouldProcess` to each mutation and filesystem write where it applies.
 
-## Errors, logging, and tests
+## Configuration and security
+
+- Support saved named connections and explicit URL and credential parameters.
+- Encrypt only saved secrets. Never save access tokens.
+
+## Errors and logging
 
 - Use the module error handler at public command boundaries. Do not return raw Homebridge errors when a clear module error applies.
 - Redact passwords, access tokens, authorization headers, and other secrets from errors and logs.
+
+## Tests and validation
+
 - Mock `Invoke-HomebridgeApiRequest` in endpoint-wrapper tests.
 - Mock `Invoke-RestMethod` only in transport tests.
 - Keep tests independent of live instances, ignored API specifications, credentials, and local-only files.
@@ -47,3 +57,9 @@
 - Keep release retries idempotent. Do not move or replace an existing version tag or release asset.
 - Never commit `Output`, `site`, `.venv`, credentials, research files, or live response bodies.
 - Never commit access tokens, passwords, API snapshots, or other secrets.
+
+## PowerShell style
+
+- Use approved verbs, singular nouns, PascalCase parameters, and four-space indentation.
+- Keep one function in each source file. Match the file name to the function name.
+- Name module infrastructure functions `*-PSHomebridge`. Reserve `*-Homebridge*` names for API operations and resource wrappers.

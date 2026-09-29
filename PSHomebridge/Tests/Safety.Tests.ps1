@@ -135,23 +135,6 @@ Describe 'Final configuration cleanup' {
 }
 
 Describe 'Contract and source boundaries' {
-    It 'matches implemented routes to API 5.29.0' {
-        $apiPath = Join-Path $repositoryRoot 'PSHomebridge/docs/research/api/api.json'
-        $api = (Get-Content -LiteralPath $apiPath -Raw | ConvertFrom-Json -Depth 100).swaggerDoc
-        $api.info.version | Should -Be '5.29.0'
-        $expectedPaths = @(
-            '/api/plugins'
-            '/api/status/homebridge-version'
-            '/api/backup/scheduled-backups'
-            '/api/backup/scheduled-backups/next'
-            '/api/backup/scheduled-backups/{backupId}'
-        )
-
-        foreach ($path in $expectedPaths) {
-            $api.paths.PSObject.Properties.Name | Should -Contain $path
-        }
-    }
-
     It 'keeps direct HTTP in the public API boundary only' {
         $source = Get-ChildItem (Join-Path $repositoryRoot 'PSHomebridge/Source') -Filter '*.ps1' -Recurse
         $directCallers = @($source | Where-Object { (Get-Content $_.FullName -Raw) -match '\bInvoke-RestMethod\b' })

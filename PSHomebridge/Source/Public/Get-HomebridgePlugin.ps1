@@ -20,7 +20,7 @@
         Explicit credentials.
 
     .PARAMETER NoAuthentication
-        Indicates authentication is disabled.
+        Indicates that the server does not require authentication.
 
     .PARAMETER Include
         Optional API extras such as config.

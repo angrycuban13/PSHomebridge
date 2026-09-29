@@ -18,13 +18,13 @@
         Explicit credentials.
 
     .PARAMETER NoAuthentication
-        Indicates authentication is disabled.
+        Indicates that the server does not require authentication.
 
     .PARAMETER PluginName
         The package name of the plugin.
 
     .PARAMETER Type
-        The plugin metadata resource to retrieve.
+        Selects the plugin metadata resource that the command returns.
 
     .PARAMETER ReleaseVersion
         The version or distribution tag used for Release metadata. This parameter is valid only when Type is Release.

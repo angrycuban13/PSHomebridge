@@ -1,4 +1,4 @@
-function Save-HomebridgeBackup {
+﻿function Save-HomebridgeBackup {
     <#
     .SYNOPSIS
         Downloads a scheduled Homebridge backup.
@@ -18,7 +18,7 @@ function Save-HomebridgeBackup {
         Explicit credentials.
 
     .PARAMETER NoAuthentication
-        Indicates authentication is disabled.
+        Indicates that the server does not require authentication.
 
     .PARAMETER BackupId
         The scheduled backup identifier. When omitted, the function downloads a current instance backup.

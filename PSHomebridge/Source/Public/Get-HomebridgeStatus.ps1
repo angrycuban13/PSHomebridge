@@ -16,10 +16,10 @@
         Explicit credentials.
 
     .PARAMETER NoAuthentication
-        Indicates authentication is disabled.
+        Indicates that the server does not require authentication.
 
     .PARAMETER Type
-        The status resource to retrieve. RaspberryPiThrottling is available only when Homebridge runs on a Raspberry Pi.
+        Selects the status resource that the command returns. RaspberryPiThrottling is available only when Homebridge runs on a Raspberry Pi.
 
     .EXAMPLE
         Get-HomebridgeStatus -InstanceName home -Type HomebridgeVersion

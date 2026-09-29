@@ -1,7 +1,7 @@
 ﻿function Get-PSHomebridgeConnection {
     <#
     .SYNOPSIS
-        Retrieves saved PSHomebridge connections without exposing passwords.
+        Gets saved PSHomebridge connections without exposing passwords.
 
     .DESCRIPTION
         This function returns one or all saved connections. Each result contains its name, URL, authentication mode, username, and password storage mode.

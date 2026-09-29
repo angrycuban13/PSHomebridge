@@ -1,0 +1,95 @@
+name: Bug report
+description: Report behavior that does not work as documented.
+title: "[Bug]: "
+labels:
+    - bug
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thank you for reporting a problem.
+
+              Do not include passwords, access tokens, or other secrets. Remove secrets from commands, URLs, errors, and logs.
+
+    - type: input
+      id: pshomebridge-version
+      attributes:
+          label: PSHomebridge version
+          description: Run `Get-Module PSHomebridge | Select-Object Name, Version` to get the loaded version.
+          placeholder: 1.0.0
+      validations:
+          required: true
+
+    - type: input
+      id: homebridge-version
+      attributes:
+          label: Homebridge version
+          description: Enter the Homebridge version that showed the problem.
+          placeholder: 1.11.0
+      validations:
+          required: true
+
+    - type: input
+      id: homebridge-ui-version
+      attributes:
+          label: Homebridge UI version
+          description: Enter the Homebridge UI version that showed the problem.
+          placeholder: 5.10.0
+      validations:
+          required: true
+
+    - type: textarea
+      id: environment
+      attributes:
+          label: Environment
+          description: Enter the PowerShell version, operating system, and installation method.
+          placeholder: |
+              PowerShell: 7.5.2
+              Operating system: Windows 11 24H2
+              Installation: PowerShell Gallery
+      validations:
+          required: true
+
+    - type: textarea
+      id: reproduction
+      attributes:
+          label: Steps to reproduce
+          description: List the shortest sequence that causes the problem. Replace all secrets with `[REDACTED]`.
+          placeholder: |
+              1. Configure a saved Homebridge connection.
+              2. Run `Get-HomebridgeStatus -InstanceName Test -Type HomebridgeVersion`.
+              3. Record the error.
+      validations:
+          required: true
+
+    - type: textarea
+      id: expected-behavior
+      attributes:
+          label: Expected behavior
+          description: Describe the result that you expected.
+      validations:
+          required: true
+
+    - type: textarea
+      id: actual-behavior
+      attributes:
+          label: Actual behavior
+          description: Describe the result that occurred. Include sanitized error text when it helps explain the problem.
+      validations:
+          required: true
+
+    - type: textarea
+      id: additional-context
+      attributes:
+          label: Additional context
+          description: Add sanitized logs, screenshots, or other details that can help reproduce the problem.
+
+    - type: checkboxes
+      id: acknowledgements
+      attributes:
+          label: Acknowledgements
+          options:
+              - label: I searched the existing issues for this problem.
+                required: true
+              - label: I removed credentials, access tokens, and other secrets from this report.
+                required: true

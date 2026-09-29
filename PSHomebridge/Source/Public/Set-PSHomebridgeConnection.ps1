@@ -26,12 +26,12 @@
         The password storage mode. The default is Dpapi on Windows and None on other platforms. Aes256 requires PSHOMEBRIDGE_AES_KEY to contain exactly 32 Base64-encoded bytes.
 
     .EXAMPLE
-        Set-PSHomebridgeConnection -InstanceName 'Home' -Url 'http://localhost:8581' -Credential $credential
+        Set-PSHomebridgeConnection -InstanceName 'Home' -Url 'https://homebridge.example.com' -Credential $credential
 
         Creates or replaces the authenticated connection named Home.
 
     .EXAMPLE
-        Set-PSHomebridgeConnection -InstanceName 'Home' -Url 'http://localhost:8581' -NoAuthentication
+        Set-PSHomebridgeConnection -InstanceName 'Home' -Url 'https://homebridge.example.com' -NoAuthentication
 
         Creates or replaces the connection named Home for an instance with authentication disabled.
 

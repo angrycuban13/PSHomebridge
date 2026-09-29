@@ -18,7 +18,7 @@
         Explicit credentials.
 
     .PARAMETER NoAuthentication
-        Indicates authentication is disabled.
+        Indicates that the server does not require authentication.
 
     .PARAMETER UniqueId
         The unique accessory identifier. When omitted, the function returns all accessories.

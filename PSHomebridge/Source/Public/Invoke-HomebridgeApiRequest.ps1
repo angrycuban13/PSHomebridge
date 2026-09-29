@@ -32,7 +32,7 @@
         Query-string keys and values appended to the request URL.
 
     .PARAMETER Body
-        The request body. Non-string values are serialized as JSON.
+        The request body. The command serializes non-string values as JSON.
 
     .PARAMETER OutFile
         The optional response destination for a download.
@@ -43,7 +43,7 @@
         Uses the saved connection named Home and returns the installed-plugin response.
 
     .EXAMPLE
-        Invoke-HomebridgeApiRequest -Url 'http://localhost:8581' -Credential $credential -Method GET -Path '/api/plugins'
+        Invoke-HomebridgeApiRequest -Url 'https://homebridge.example.com' -Credential $credential -Method GET -Path '/api/plugins'
 
         Uses an explicit URL and credential without saving either value.
 
@@ -55,7 +55,7 @@
     .OUTPUTS
         [System.Object]
 
-        This function returns response objects retrieved from the Homebridge API or writes a response to OutFile.
+        This function returns Homebridge API response objects or writes a response to OutFile.
     #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium', DefaultParameterSetName = 'Named')]
     [OutputType([System.Object])]

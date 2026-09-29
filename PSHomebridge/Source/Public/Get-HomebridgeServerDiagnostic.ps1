@@ -18,10 +18,10 @@
         Explicit credentials.
 
     .PARAMETER NoAuthentication
-        Indicates authentication is disabled.
+        Indicates that the server does not require authentication.
 
     .PARAMETER Type
-        The server diagnostic resource to retrieve.
+        Selects the server diagnostic resource that the command returns.
 
     .EXAMPLE
         Get-HomebridgeServerDiagnostic -InstanceName home -Type NetworkOverview

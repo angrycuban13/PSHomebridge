@@ -1,0 +1,78 @@
+name: Feature request
+description: Propose a change that fits the supported PSHomebridge scope.
+title: "[Feature]: "
+labels:
+    - enhancement
+body:
+    - type: markdown
+      attributes:
+          value: |
+              PSHomebridge provides reusable configuration, transport, and API endpoint commands for Homebridge.
+
+              Do not include passwords, access tokens, or other secrets. Remove secrets from commands, URLs, errors, and logs.
+
+    - type: textarea
+      id: use-case
+      attributes:
+          label: Use case
+          description: Describe the task that PSHomebridge cannot complete now. Explain who needs the change and why.
+      validations:
+          required: true
+
+    - type: textarea
+      id: proposed-behavior
+      attributes:
+          label: Proposed behavior
+          description: Describe the command or behavior that you want. Include example PowerShell syntax when it clarifies the request.
+      validations:
+          required: true
+
+    - type: dropdown
+      id: change-scope
+      attributes:
+          label: Change scope
+          description: Select the main part of PSHomebridge that needs the change.
+          options:
+              - Read command
+              - State-changing command
+              - Saved configuration
+              - HTTP transport
+              - Output type or format
+              - Documentation
+              - Other supported module behavior
+      validations:
+          required: true
+
+    - type: textarea
+      id: scope-limits
+      attributes:
+          label: Scope and limits
+          description: State what the feature must include and what it does not need to include.
+      validations:
+          required: true
+
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Current alternatives
+          description: Describe any command or process that you use now. Enter "None" if no alternative exists.
+      validations:
+          required: true
+
+    - type: textarea
+      id: additional-context
+      attributes:
+          label: Additional context
+          description: Add links to relevant Homebridge API documentation or related issues.
+
+    - type: checkboxes
+      id: acknowledgements
+      attributes:
+          label: Acknowledgements
+          options:
+              - label: I searched the existing issues for this request.
+                required: true
+              - label: This request applies to Homebridge or shared PSHomebridge behavior.
+                required: true
+              - label: I removed credentials, access tokens, and other secrets from this request.
+                required: true

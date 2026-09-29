@@ -16,7 +16,7 @@
         Explicit credentials.
 
     .PARAMETER NoAuthentication
-        Indicates authentication is disabled.
+        Indicates that the server does not require authentication.
 
     .EXAMPLE
         New-HomebridgeBackup -InstanceName home
